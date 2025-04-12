@@ -2,6 +2,8 @@ package net.cakemc.skrilla.networking.packet
 
 import net.cakemc.meshing.redundant.networking.packet.packets.auth.AuthRequestPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.auth.AuthResponsePacket
+import net.cakemc.meshing.redundant.networking.packet.packets.metrics.LeadershipChangePacket
+import net.cakemc.meshing.redundant.networking.packet.packets.metrics.MetricsPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.ping.NodeFailureBroadcastPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.ping.PingPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.ping.PongPacket
@@ -38,6 +40,11 @@ class PacketRegistry {
         registerPacketById(0x7, NodeFailureBroadcastPacket::class.java)
         // response
         registerPacketById(0x8, PongPacket::class.java)
+
+        // METRICS
+        // request
+        registerPacketById(0x9, LeadershipChangePacket::class.java)
+        registerPacketById(0x10, MetricsPacket::class.java)
     }
 
     fun registerPacketById(identity: Int, packetClass: Class<out Packet>) {

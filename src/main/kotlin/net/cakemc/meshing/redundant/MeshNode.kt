@@ -5,6 +5,8 @@ import net.cakemc.meshing.redundant.event.impl.PacketReceivedEvent
 import net.cakemc.meshing.redundant.networking.packet.packets.auth.AuthRequestPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.auth.AuthResponsePacket
 import net.cakemc.meshing.redundant.networking.packet.packets.auth.AuthStatus
+import net.cakemc.meshing.redundant.networking.packet.packets.metrics.LeadershipChangePacket
+import net.cakemc.meshing.redundant.networking.packet.packets.metrics.MetricsPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.ping.NodeFailureBroadcastPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.ping.PingPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.ping.PongPacket
@@ -28,6 +30,8 @@ class MeshNode(
     private val server = NetworkingServer()
     private val client = NetworkingClient()
     private val connectedPeers = ConcurrentHashMap<String, Boolean>()
+    private val leaderEngine = LeaderElectionEngine(nodeName, peers, client)
+    private val broadcaster = MetricBroadcaster(nodeName, client, peers)
 
     private var sessionToken: String = ""
 
@@ -49,6 +53,7 @@ class MeshNode(
           }
         )
 
+        //broadcaster.start() TODO FIX ERROR on serial
         monitor.start()
 
         monitor.attemptRecovery { peer ->
@@ -100,11 +105,22 @@ class MeshNode(
           server.clientHandler.replyToPacketSync(event.channel, packet, response)
         }
 
+        // status
         if (packet is PingPacket) {
           server.clientHandler.replyToPacketSync(event.channel, packet, PongPacket(nodeName))
         }
+
         if (packet is NodeFailureBroadcastPacket) {
           println("[$nodeName] Alert: ${packet.failedNode} is DOWN (reported by ${packet.reporter})")
+        }
+
+        // metrics
+        if (packet is LeadershipChangePacket) {
+          println("[$nodeName] New leader announced: ${packet.newLeader} | Reason: ${packet.reason}")
+        }
+
+        if (packet is MetricsPacket) {
+          leaderEngine.onMetric(packet)
         }
 
       }

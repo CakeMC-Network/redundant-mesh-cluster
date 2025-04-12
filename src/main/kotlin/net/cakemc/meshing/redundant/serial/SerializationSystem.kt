@@ -102,6 +102,7 @@ class SerializationSystem {
                     field.set(nullObject, fieldValue)
                 } else {
                     val superClazz = currentClass.superclass
+
                     val field = superClazz.getDeclaredField(fieldName)
                     field.isAccessible = true
 
