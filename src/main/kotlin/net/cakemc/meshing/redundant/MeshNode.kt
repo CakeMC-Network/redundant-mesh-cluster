@@ -5,6 +5,9 @@ import net.cakemc.meshing.redundant.event.impl.PacketReceivedEvent
 import net.cakemc.meshing.redundant.networking.packet.packets.auth.AuthRequestPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.auth.AuthResponsePacket
 import net.cakemc.meshing.redundant.networking.packet.packets.auth.AuthStatus
+import net.cakemc.meshing.redundant.networking.packet.packets.ping.NodeFailureBroadcastPacket
+import net.cakemc.meshing.redundant.networking.packet.packets.ping.PingPacket
+import net.cakemc.meshing.redundant.networking.packet.packets.ping.PongPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.session.SessionRenewalRequestPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.session.SessionRenewalResponsePacket
 import net.cakemc.meshing.redundant.networking.packet.packets.session.SessionValidationRequestPacket
@@ -35,6 +38,22 @@ class MeshNode(
 
         startServer()
         connectToPeers()
+
+        val monitor = ClusterMonitor(
+          nodeName = nodeName,
+          client = client,
+          peers = peers,
+          onNodeFailure = { failedPeer ->
+            println("[$nodeName] Handling failure of ${failedPeer.name}")
+            // maybe mark internally or remove temporarily
+          }
+        )
+
+        monitor.start()
+
+        monitor.attemptRecovery { peer ->
+          client.connect(peer.host, peer.port) // reconnection logic
+        }
     }
 
     private fun registerTypes() {
@@ -79,6 +98,13 @@ class MeshNode(
             )
           }
           server.clientHandler.replyToPacketSync(event.channel, packet, response)
+        }
+
+        if (packet is PingPacket) {
+          server.clientHandler.replyToPacketSync(event.channel, packet, PongPacket(nodeName))
+        }
+        if (packet is NodeFailureBroadcastPacket) {
+          println("[$nodeName] Alert: ${packet.failedNode} is DOWN (reported by ${packet.reporter})")
         }
 
       }

@@ -2,6 +2,9 @@ package net.cakemc.skrilla.networking.packet
 
 import net.cakemc.meshing.redundant.networking.packet.packets.auth.AuthRequestPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.auth.AuthResponsePacket
+import net.cakemc.meshing.redundant.networking.packet.packets.ping.NodeFailureBroadcastPacket
+import net.cakemc.meshing.redundant.networking.packet.packets.ping.PingPacket
+import net.cakemc.meshing.redundant.networking.packet.packets.ping.PongPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.session.SessionRenewalRequestPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.session.SessionRenewalResponsePacket
 import net.cakemc.meshing.redundant.networking.packet.packets.session.SessionValidationRequestPacket
@@ -29,6 +32,12 @@ class PacketRegistry {
         registerPacketById(0x4, SessionRenewalResponsePacket::class.java)
         registerPacketById(0x5, SessionValidationResponsePacket::class.java)
 
+        // PING
+        // request
+        registerPacketById(0x6, PingPacket::class.java)
+        registerPacketById(0x7, NodeFailureBroadcastPacket::class.java)
+        // response
+        registerPacketById(0x8, PongPacket::class.java)
     }
 
     fun registerPacketById(identity: Int, packetClass: Class<out Packet>) {
