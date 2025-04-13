@@ -14,6 +14,12 @@ import net.cakemc.meshing.redundant.networking.packet.packets.session.SessionRen
 import net.cakemc.meshing.redundant.networking.packet.packets.session.SessionRenewalResponsePacket
 import net.cakemc.meshing.redundant.networking.packet.packets.session.SessionValidationRequestPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.session.SessionValidationResponsePacket
+import net.cakemc.meshing.redundant.networking.packet.packets.status.ClusterReadyBroadcastPacket
+import net.cakemc.meshing.redundant.networking.packet.packets.status.NodeJoinAnnouncementPacket
+import net.cakemc.meshing.redundant.networking.packet.packets.task.TaskAssignmentPacket
+import net.cakemc.meshing.redundant.networking.packet.packets.task.TaskCompletionPacket
+import net.cakemc.meshing.redundant.networking.packet.packets.task.TaskQueueAcknowledgePacket
+import net.cakemc.meshing.redundant.networking.packet.packets.task.TaskStatus
 import net.cakemc.skrilla.networking.NetworkingClient
 import net.cakemc.skrilla.networking.NetworkingServer
 import net.cakemc.skrilla.serial.SerializationSystem
@@ -22,9 +28,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 class MeshNode(
-    val nodeName: String,
-    private val port: Int,
-    private val peers: List<PeerConfig>
+    val nodeName: String, private val port: Int, private val peers: List<PeerConfig>
 ) {
 
     private val server = NetworkingServer()
@@ -32,6 +36,11 @@ class MeshNode(
     private val connectedPeers = ConcurrentHashMap<String, Boolean>()
     private val leaderEngine = LeaderElectionEngine(nodeName, peers, client)
     private val broadcaster = MetricBroadcaster(nodeName, client, peers)
+    private val leaderCoordinator = LeaderCoordinator(client, peers, nodeName)
+    private val leaderCoordinatorWithQueue = LeaderCoordinatorWithQueue(client, peers, nodeName)
+    private val nodeFollowerWithQueue = NodeFollowerWithQueue(client, nodeName)
+    private val coordinator = ClusterCoordinator(client, peers, nodeName)
+    private val clusterNode = ClusterNode(client, nodeName)
 
     private var sessionToken: String = ""
 
@@ -43,21 +52,17 @@ class MeshNode(
         startServer()
         connectToPeers()
 
-        val monitor = ClusterMonitor(
-          nodeName = nodeName,
-          client = client,
-          peers = peers,
-          onNodeFailure = { failedPeer ->
-            println("[$nodeName] Handling failure of ${failedPeer.name}")
-            // maybe mark internally or remove temporarily
-          }
-        )
+        val monitor =
+            ClusterMonitor(nodeName = nodeName, client = client, peers = peers, onNodeFailure = { failedPeer ->
+                println("[$nodeName] Handling failure of ${failedPeer.name}")
+                // maybe mark internally or remove temporarily
+            })
 
         //broadcaster.start() TODO FIX ERROR on serial
         monitor.start()
 
         monitor.attemptRecovery { peer ->
-          client.connect(peer.host, peer.port) // reconnection logic
+            client.connect(peer.host, peer.port) // reconnection logic
         }
     }
 
@@ -66,82 +71,108 @@ class MeshNode(
     }
 
     private fun setupServer() {
-      server.eventBus.subscribe<PacketReceivedEvent> { event ->
-        val packet = event.packet
+        server.eventBus.subscribe<PacketReceivedEvent> { event ->
+            val packet = event.packet
 
-        // auth
-        if (packet is AuthRequestPacket) {
-          println("Authenticating ${packet.username}")
-          val response = AuthService.authenticate(packet.username, packet.password)
-          server.clientHandler.replyToPacketSync(event.channel, packet, response)
+            // auth
+            if (packet is AuthRequestPacket) {
+                println("Authenticating ${packet.username}")
+                val response = AuthService.authenticate(packet.username, packet.password)
+                server.clientHandler.replyToPacketSync(event.channel, packet, response)
+            }
+
+            // session
+            if (packet is SessionValidationRequestPacket) {
+                val valid = SessionManager.validateSession(packet.token)
+                val username = SessionManager.getSessionUser(packet.token)
+                val response = SessionValidationResponsePacket(
+                    isValid = valid,
+                    username = if (valid) username else null,
+                    message = if (valid) "Session valid." else "Session invalid or expired."
+                )
+                server.clientHandler.replyToPacketSync(event.channel, packet, response)
+            }
+
+            if (packet is SessionRenewalRequestPacket) {
+                val newSession = SessionManager.renewSession(packet.token)
+                val response = if (newSession != null) {
+                    SessionRenewalResponsePacket(
+                        success = true, newExpiration = newSession.expiresAt, message = "Session renewed."
+                    )
+                } else {
+                    SessionRenewalResponsePacket(
+                        success = false, message = "Session expired or invalid."
+                    )
+                }
+                server.clientHandler.replyToPacketSync(event.channel, packet, response)
+            }
+
+            // ping
+            if (packet is PingPacket) {
+                server.clientHandler.replyToPacketSync(event.channel, packet, PongPacket(nodeName))
+            }
+
+            if (packet is NodeFailureBroadcastPacket) {
+                println("[$nodeName] Alert: ${packet.failedNode} is DOWN (reported by ${packet.reporter})")
+            }
+
+            // metrics
+            if (packet is LeadershipChangePacket) {
+                println("[$nodeName] New leader announced: ${packet.newLeader} | Reason: ${packet.reason}")
+            }
+
+            if (packet is MetricsPacket) {
+                leaderEngine.onMetric(packet)
+            }
+
+            // tasks
+            if (packet is TaskAssignmentPacket) {
+                if (nodeName == packet.assignedNode) {
+                    val follower = NodeFollower(client, nodeName)
+                    follower.handleTaskAssignment(packet)
+                }
+            }
+            if (packet is TaskCompletionPacket) {
+                leaderCoordinator.monitorTasks(packet.taskId)
+            }
+            if (packet is TaskQueueAcknowledgePacket) {
+                if (packet.status == TaskStatus.COMPLETED) {
+                    println("Task ${packet.taskId} completed by ${packet.nodeName}")
+                } else {
+                    println("Task ${packet.taskId} failed on ${packet.nodeName}")
+                    // Optionally, re-enqueue failed tasks for reassignment
+                    TaskQueueManager.enqueueTask(packet.taskId, "Task failed. Re-enqueuing.")
+                }
+            }
+
+            // status
+            if (packet is NodeJoinAnnouncementPacket) {
+                coordinator.handleJoin(packet)
+            }
+            if (packet is ClusterReadyBroadcastPacket) {
+                clusterNode.onClusterReady(packet)
+            }
         }
-
-        // session
-        if (packet is SessionValidationRequestPacket) {
-          val valid = SessionManager.validateSession(packet.token)
-          val username = SessionManager.getSessionUser(packet.token)
-          val response = SessionValidationResponsePacket(
-            isValid = valid,
-            username = if (valid) username else null,
-            message = if (valid) "Session valid." else "Session invalid or expired."
-          )
-          server.clientHandler.replyToPacketSync(event.channel, packet, response)
-        }
-
-        if (packet is SessionRenewalRequestPacket) {
-          val newSession = SessionManager.renewSession(packet.token)
-          val response = if (newSession != null) {
-            SessionRenewalResponsePacket(
-              success = true,
-              newExpiration = newSession.expiresAt,
-              message = "Session renewed."
-            )
-          } else {
-            SessionRenewalResponsePacket(
-              success = false,
-              message = "Session expired or invalid."
-            )
-          }
-          server.clientHandler.replyToPacketSync(event.channel, packet, response)
-        }
-
-        // status
-        if (packet is PingPacket) {
-          server.clientHandler.replyToPacketSync(event.channel, packet, PongPacket(nodeName))
-        }
-
-        if (packet is NodeFailureBroadcastPacket) {
-          println("[$nodeName] Alert: ${packet.failedNode} is DOWN (reported by ${packet.reporter})")
-        }
-
-        // metrics
-        if (packet is LeadershipChangePacket) {
-          println("[$nodeName] New leader announced: ${packet.newLeader} | Reason: ${packet.reason}")
-        }
-
-        if (packet is MetricsPacket) {
-          leaderEngine.onMetric(packet)
-        }
-
-      }
     }
 
     private fun setupClient() {
-      client.eventBus.subscribe<ClientReadyEvent> {
-        val future = client.clientHandler.sendPacketWithFuture("main", AuthRequestPacket("test", "test123"))
-        val response = future.syncUninterruptedly(2000, TimeUnit.MILLISECONDS)
+        client.eventBus.subscribe<ClientReadyEvent> {
+            val future = client.clientHandler.sendPacketWithFuture("main", AuthRequestPacket("test", "test123"))
+            val response = future.syncUninterruptedly(2000, TimeUnit.MILLISECONDS)
 
-        if (response is AuthResponsePacket) {
-          println("Auth result: ${AuthStatus.values()[response.status]}")
-          println("Message: ${response.message}")
-          println("Session Token: ${response.sessionToken}")
+            if (response is AuthResponsePacket) {
+                println("Auth result: ${AuthStatus.values()[response.status]}")
+                println("Message: ${response.message}")
+                println("Session Token: ${response.sessionToken}")
 
-          // TODO IMPLEMENT LOGIN WITH ACCEPTING DENY CLOSES CLIENT
-          // TODO add peer too $connectedPeers!
+                // TODO IMPLEMENT LOGIN WITH ACCEPTING DENY CLOSES CLIENT
+                // TODO add peer too $connectedPeers!
 
-          sessionToken = response.sessionToken!!
+                sessionToken = response.sessionToken!!
+
+                clusterNode.announceSelf()
+            }
         }
-      }
 
     }
 
