@@ -1,4 +1,4 @@
-package net.cakemc.meshing.redundant
+package net.cakemc.meshing.redundant.session
 
 import net.cakemc.meshing.redundant.networking.packet.packets.auth.AuthResponsePacket
 import net.cakemc.meshing.redundant.networking.packet.packets.auth.AuthStatus

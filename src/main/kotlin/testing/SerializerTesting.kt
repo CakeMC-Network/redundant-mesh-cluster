@@ -1,5 +1,6 @@
-package net.cakemc.skrilla.serial
+package testing
 
+import net.cakemc.skrilla.serial.SerializationSystem
 import java.util.*
 
 fun main() {

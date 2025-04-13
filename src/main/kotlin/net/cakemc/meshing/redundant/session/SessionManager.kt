@@ -1,4 +1,4 @@
-package net.cakemc.meshing.redundant
+package net.cakemc.meshing.redundant.session
 
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap

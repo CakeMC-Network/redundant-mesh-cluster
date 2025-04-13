@@ -1,5 +1,7 @@
-package net.cakemc.meshing.redundant
+package net.cakemc.meshing.redundant.leading
 
+import net.cakemc.meshing.redundant.PeerConfig
+import net.cakemc.meshing.redundant.task.TaskQueueManager
 import net.cakemc.meshing.redundant.networking.packet.packets.task.*
 import net.cakemc.skrilla.networking.NetworkingClient
 import java.util.concurrent.TimeUnit
@@ -13,7 +15,7 @@ class LeaderCoordinatorWithQueue(
 
     // Periodically assign tasks from the queue
     fun assignTasksFromQueue() {
-        while (taskQueueManager.hasPendingTasks()) {
+        while (TaskQueueManager.hasPendingTasks()) {
             for (peer in peers) {
                 val responsePacket = client.clientHandler.sendPacketWithFuture(
                     "main", TaskQueueRequestPacket(nodeName)
@@ -21,7 +23,7 @@ class LeaderCoordinatorWithQueue(
 
                 if (responsePacket.taskId != null) {
                     val taskId = responsePacket.taskId
-                    taskQueueManager.acknowledgeTaskCompletion(taskId, peer.name, TaskStatus.IN_PROGRESS)
+                    TaskQueueManager.acknowledgeTaskCompletion(taskId, peer.name, TaskStatus.IN_PROGRESS)
 
                     // Notify the node about the assigned task
                     val taskAssignmentPacket = TaskAssignmentPacket(taskId, peer.name)

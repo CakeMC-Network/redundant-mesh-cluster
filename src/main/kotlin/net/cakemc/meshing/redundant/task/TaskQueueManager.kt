@@ -1,4 +1,4 @@
-package net.cakemc.meshing.redundant
+package net.cakemc.meshing.redundant.task
 
 import net.cakemc.meshing.redundant.networking.packet.packets.task.TaskQueueResponsePacket
 import net.cakemc.meshing.redundant.networking.packet.packets.task.TaskStatus

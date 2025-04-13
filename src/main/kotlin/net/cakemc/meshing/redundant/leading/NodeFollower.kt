@@ -1,4 +1,4 @@
-package net.cakemc.meshing.redundant
+package net.cakemc.meshing.redundant.leading
 
 import net.cakemc.meshing.redundant.networking.packet.packets.task.TaskAssignmentPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.task.TaskCompletionPacket

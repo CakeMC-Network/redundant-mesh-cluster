@@ -1,4 +1,7 @@
-package net.cakemc.meshing.redundant
+package testing
+
+import net.cakemc.meshing.redundant.MeshNode
+import net.cakemc.meshing.redundant.PeerConfig
 
 fun main() {
   val node1 = MeshNode("Node1", 3001, listOf(

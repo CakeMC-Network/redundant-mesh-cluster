@@ -1,13 +1,15 @@
-package net.cakemc.meshing.redundant
+package net.cakemc.meshing.redundant.leading
 
+import net.cakemc.meshing.redundant.PeerConfig
+import net.cakemc.meshing.redundant.task.TaskManager
 import net.cakemc.meshing.redundant.networking.packet.packets.task.TaskAssignmentPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.task.TaskStatus
 import net.cakemc.skrilla.networking.NetworkingClient
 
 class LeaderCoordinator(
-  private val client: NetworkingClient,
-  private val peers: List<PeerConfig>,
-  private val nodeName: String
+    private val client: NetworkingClient,
+    private val peers: List<PeerConfig>,
+    private val nodeName: String
 ) {
 
     private val taskManager = TaskManager
@@ -15,7 +17,7 @@ class LeaderCoordinator(
     // Assign task to a node
     fun assignTaskToNode(taskId: String, taskDescription: String) {
         val nodeToAssign = selectNodeForTask() // This can be any logic like selecting least loaded node
-        taskManager.assignTask(taskId, nodeToAssign)
+        TaskManager.assignTask(taskId, nodeToAssign)
 
         // Notify all nodes about the task assignment
         val assignmentPacket = TaskAssignmentPacket(taskId, nodeToAssign)
@@ -44,7 +46,7 @@ class LeaderCoordinator(
 
     // Monitor the completion or failure of tasks
     fun monitorTasks(taskId: String) {
-        val status = taskManager.getTaskStatus(taskId)
+        val status = TaskManager.getTaskStatus(taskId)
         if (status == TaskStatus.COMPLETED) {
             println("Task $taskId completed. Handling task completion...")
         } else if (status == TaskStatus.FAILED) {

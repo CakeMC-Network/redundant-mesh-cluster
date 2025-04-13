@@ -1,4 +1,4 @@
-package net.cakemc.meshing.redundant
+package testing
 
 import net.cakemc.meshing.redundant.event.impl.ClientReadyEvent
 import net.cakemc.meshing.redundant.event.impl.PacketReceivedEvent

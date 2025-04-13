@@ -1,5 +1,6 @@
-package net.cakemc.meshing.redundant
+package net.cakemc.meshing.redundant.leading
 
+import net.cakemc.meshing.redundant.PeerConfig
 import net.cakemc.meshing.redundant.networking.packet.packets.metrics.LeadershipChangePacket
 import net.cakemc.meshing.redundant.networking.packet.packets.metrics.MetricsPacket
 import net.cakemc.skrilla.networking.NetworkingClient

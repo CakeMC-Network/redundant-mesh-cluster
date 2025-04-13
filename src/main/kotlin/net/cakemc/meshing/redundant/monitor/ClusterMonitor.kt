@@ -1,5 +1,6 @@
-package net.cakemc.meshing.redundant
+package net.cakemc.meshing.redundant.monitor
 
+import net.cakemc.meshing.redundant.PeerConfig
 import net.cakemc.meshing.redundant.networking.packet.packets.ping.NodeFailureBroadcastPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.ping.PingPacket
 import net.cakemc.meshing.redundant.networking.packet.packets.ping.PongPacket
