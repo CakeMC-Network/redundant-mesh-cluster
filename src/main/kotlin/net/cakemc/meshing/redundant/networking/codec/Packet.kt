@@ -10,4 +10,19 @@ class Packet(
     val channel: String,
     val topic: String,
     val payload: String,
-)
+) {
+
+    override fun toString(): String {
+        return buildString {
+            appendLine("Packet {")
+            appendLine("  UUID     : $responseUUID")
+            appendLine("  Type     : ${packetType.name} [${packetType.ordinal}]")
+            appendLine("  Sender   : $sender")
+            appendLine("  Channel  : $channel")
+            appendLine("  Topic    : $topic")
+            appendLine("  Payload  : $payload")
+            append("}")
+        }
+    }
+
+}

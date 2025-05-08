@@ -60,7 +60,9 @@ class ClientEndPoint(
         else EpollSocketChannel::class.java) else NioSocketChannel::class.java
 
         this.eventBus = EventBus()
-        this.connectionHandler = ConnectionHandler(eventBus)
+        this.connectionHandler = ConnectionHandler(
+            eventBus, member, EndpointType.CLIENT
+        )
 
         this.bossHandler = BossHandler(
             member, connectionHandler, eventBus,

@@ -1,23 +1,28 @@
 package net.cakemc.skrilla.networking.handler
 
 import io.netty.channel.Channel
+import net.cakemc.meshing.redundant.Member
 import net.cakemc.meshing.redundant.event.EventBus
 import net.cakemc.meshing.redundant.event.impl.PacketReceivedEvent
+import net.cakemc.meshing.redundant.networking.EndpointType
 import net.cakemc.meshing.redundant.networking.codec.Packet
 import net.cakemc.meshing.redundant.networking.codec.PacketFuture
 import net.cakemc.meshing.redundant.networking.codec.PacketType
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
 class ConnectionHandler(
-  val eventBus: EventBus
+    val eventBus: EventBus,
+    val member: Member,
+    var type: EndpointType
 ) {
 
     val contextMap: MutableMap<String, Channel> = ConcurrentHashMap()
     val pendingPackets: MutableMap<UUID, PacketFuture> = ConcurrentHashMap()
 
     fun packetReceived(channel: Channel, packet: Packet) {
-      eventBus.publish(PacketReceivedEvent(channel, packet))
+        eventBus.publish(PacketReceivedEvent(channel, packet))
     }
 
     fun getChannel(name: String): Channel? {
@@ -54,7 +59,7 @@ class ConnectionHandler(
 
     fun getChannelNameByContext(ctx: Channel): String? {
         val entry = this.contextMap.entries.stream()
-            .filter {it.value.equals(ctx)}.findFirst().orElse(null)
+            .filter { it.value.equals(ctx) }.findFirst().orElse(null)
 
         if (entry == null) {
             return null
@@ -70,16 +75,52 @@ class ConnectionHandler(
     // sending methods
 
     fun sendPacketMainSync(packet: Packet) {
-        sendPacketSync("__main__", packet)
+        if (this.type == EndpointType.SERVER) {
+            sendToAllSync(packet)
+        } else {
+            sendPacketSync("__main__", packet)
+        }
+
     }
 
     fun sendPacketMainWithFuture(packet: Packet): PacketFuture {
+        if (this.type == EndpointType.SERVER) {
+            if (contextMap.isEmpty()) {
+                throw IllegalStateException("No clients connected to the server.")
+            }
+
+            val packets: MutableList<Packet?> = LinkedList()
+
+            contextMap.forEach { name, channel ->
+                try {
+                    val futurePacket = sendPacketWithFuture(name, packet).syncUninterruptedly(3, TimeUnit.SECONDS)
+                    if (futurePacket == null) {
+                        println("[WARN] Response from '$name' was null.")
+                    }
+                    packets.add(futurePacket)
+                } catch (e: Exception) {
+                    packets.add(null)
+                }
+            }
+
+            val packetFuture = PacketFuture()
+            packetFuture.set(packets[0])
+            return packetFuture
+        }
+
+        // Client behavior
         return sendPacketWithFuture("__main__", packet)
     }
 
 
+
     fun sendPacketMainAsync(packet: Packet) {
-        sendPacketAsync("__main__", packet)
+        if (this.type == EndpointType.SERVER) {
+            sendToAllAsync(packet)
+        } else {
+            sendPacketAsync("__main__", packet)
+        }
+
     }
 
     fun sendPacketMainWithFutureAsync(packet: Packet): PacketFuture {

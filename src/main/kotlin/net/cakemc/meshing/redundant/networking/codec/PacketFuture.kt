@@ -88,13 +88,13 @@ class PacketFuture : Future<Packet> {
      * @throws InterruptedException if the current thread was interrupted
      * while waiting
      */
-    override fun get(): Packet {
+    override fun get(): Packet? {
         synchronized(waitingObject) {
             await()
             hasFailed()
         }
 
-        return value!!
+        return value
     }
 
     /**
@@ -111,16 +111,16 @@ class PacketFuture : Future<Packet> {
      * while waiting
      * @throws TimeoutException if the wait timed out
      */
-    override fun get(timeout: Long, unit: TimeUnit): Packet {
+    override fun get(timeout: Long, unit: TimeUnit): Packet? {
         synchronized(waitingObject) {
             await(timeout, unit)
             hasFailed()
 
-            return value!!
+            return value
         }
     }
 
-    fun set(packet: Packet): Boolean {
+    fun set(packet: Packet?): Boolean {
         synchronized(waitingObject) {
             if (isDone)
                 return false
@@ -144,7 +144,7 @@ class PacketFuture : Future<Packet> {
             } while (state.equals(PacketFutureState.WAITING) && System.currentTimeMillis() < end)
 
             if (state.equals(PacketFutureState.WAITING))
-                throw TimeoutException("packet future timeout!")
+                set(null) // return null notify all
         }
     }
 
@@ -167,13 +167,13 @@ class PacketFuture : Future<Packet> {
             throw IllegalStateException()
     }
 
-    fun syncUninterruptedly(): Packet {
+    fun syncUninterruptedly(): Packet? {
         synchronized(waitingObject) {
             return get()
         }
     }
 
-    fun syncUninterruptedly(timeout: Long, unit: TimeUnit): Packet {
+    fun syncUninterruptedly(timeout: Long, unit: TimeUnit): Packet? {
         synchronized(waitingObject) {
             return get(timeout, unit)
         }

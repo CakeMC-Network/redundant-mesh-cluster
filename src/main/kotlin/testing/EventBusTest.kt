@@ -11,5 +11,5 @@ fun main() {
     println(event.message)
   }
 
-  eventBus.publish(Event("TEST OWO"))
+  eventBus.publish(Event("TEST"))
 }
