@@ -12,6 +12,15 @@ class Packet(
     val payload: String,
 ) {
 
+    constructor(
+        packetType: PacketType,
+
+        sender: String,
+        channel: String,
+        topic: String,
+        payload: String
+    ) : this(UUID.randomUUID(), packetType, sender, channel, topic, payload)
+
     override fun toString(): String {
         return buildString {
             appendLine("Packet {")

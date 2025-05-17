@@ -143,6 +143,10 @@ class ClientEndPoint(
         return eventBus
     }
 
+    override fun member(): Member {
+        return member
+    }
+
     companion object {
         /**
          * Indicates whether Epoll is available for use.
