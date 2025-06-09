@@ -1,7 +1,7 @@
 package testing
 
 import net.cakemc.meshing.redundant.event.impl.PacketReceivedEvent
-import net.cakemc.meshing.redundant.networking.Networking
+import net.cakemc.meshing.redundant.networking.EndPoint
 import net.cakemc.meshing.redundant.networking.codec.Packet
 import net.cakemc.meshing.redundant.networking.codec.PacketType
 import java.util.*
@@ -9,8 +9,8 @@ import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 fun main() {
-    val endpoint1 = Networking.createEndPoint()
-    val endpoint2 = Networking.createEndPoint()
+    val endpoint1 = EndPoint.createEndPoint()
+    val endpoint2 = EndPoint.createEndPoint()
 
     endpoint1.eventBus().subscribe<PacketReceivedEvent> { packetReceivedEvent ->
         println("packet got on client 1")

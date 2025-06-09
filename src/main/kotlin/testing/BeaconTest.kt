@@ -1,15 +1,15 @@
 package testing
 
 import net.cakemc.meshing.redundant.event.impl.PacketReceivedEvent
-import net.cakemc.meshing.redundant.networking.Networking
+import net.cakemc.meshing.redundant.networking.EndPoint
 import net.cakemc.meshing.redundant.networking.codec.Packet
 import net.cakemc.meshing.redundant.networking.codec.PacketType
 import kotlin.concurrent.thread
 
 fun main() {
-    val endpoint1 = Networking.createEndPoint()
-    val endpoint2 = Networking.createEndPoint()
-    val endpoint3 = Networking.createEndPoint()
+    val endpoint1 = EndPoint.createEndPoint()
+    val endpoint2 = EndPoint.createEndPoint()
+    val endpoint3 = EndPoint.createEndPoint()
 
     endpoint1.eventBus().subscribe<PacketReceivedEvent> { println("received packet from ${it.packet.sender} this it (1)") }
     endpoint2.eventBus().subscribe<PacketReceivedEvent> { println("received packet from ${it.packet.sender} this it (2)") }
@@ -21,7 +21,7 @@ fun main() {
 
     Thread.sleep(2000)
 
-    endpoint1.handler().sendToAllSync(
-        Packet(PacketType.NORMAL, "client-1", "test", "testing", "{}")
+    endpoint2.handler().sendToAllSync(
+        Packet(PacketType.NORMAL, "channel-2", "test", "testing", "{}")
     )
 }

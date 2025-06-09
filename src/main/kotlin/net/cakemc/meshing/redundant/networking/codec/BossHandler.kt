@@ -37,6 +37,10 @@ class BossHandler(
         }
 
         connectionHandler.packetReceived(ctx.channel(), packet)
+
+        if (type == EndpointType.SERVER) {
+            connectionHandler.sendToAllSync(packet, ctx.channel())
+        }
     }
 
     override fun channelInactive(ctx: ChannelHandlerContext) {

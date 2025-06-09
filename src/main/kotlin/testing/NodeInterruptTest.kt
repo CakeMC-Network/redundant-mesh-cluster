@@ -1,13 +1,13 @@
 package testing
 
-import net.cakemc.meshing.redundant.networking.Networking
+import net.cakemc.meshing.redundant.networking.EndPoint
 import kotlin.concurrent.thread
 
 fun main() {
-    val endpoint1 = Networking.createEndPoint()
-    val endpoint2 = Networking.createEndPoint()
-    val endpoint3 = Networking.createEndPoint()
-    val endpoint4 = Networking.createEndPoint()
+    val endpoint1 = EndPoint.createEndPoint()
+    val endpoint2 = EndPoint.createEndPoint()
+    val endpoint3 = EndPoint.createEndPoint()
+    val endpoint4 = EndPoint.createEndPoint()
 
     thread(start = true, isDaemon = true) { endpoint1.start() }
     thread(start = true, isDaemon = true) { endpoint2.start() }

@@ -155,6 +155,15 @@ class ConnectionHandler(
         this.contextMap.values.forEach { it.writeAndFlush(packet) }
     }
 
+    fun sendToAllSync(packet: Packet, vararg excluded: Channel) {
+        this.contextMap.values.forEach {
+            if (excluded.contains(it))
+                return
+
+            it.writeAndFlush(packet)
+        }
+    }
+
     fun sendPacketAsync(name: String, packet: Packet) {
         if (this.contextMap.containsKey(name)) {
             val context = this.contextMap[name]

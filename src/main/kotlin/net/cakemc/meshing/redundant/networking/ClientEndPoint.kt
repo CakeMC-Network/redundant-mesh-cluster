@@ -15,6 +15,8 @@ import io.netty.channel.kqueue.KQueueSocketChannel
 import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.nio.NioSocketChannel
 import net.cakemc.meshing.redundant.Member
+import net.cakemc.meshing.redundant.distributed.DistributedMap
+import net.cakemc.meshing.redundant.distributed.SimpleDistributedMap
 import net.cakemc.meshing.redundant.event.EventBus
 import net.cakemc.meshing.redundant.logger.Logger
 import net.cakemc.meshing.redundant.networking.handler.ClientChannelInitializer
@@ -107,6 +109,22 @@ class ClientEndPoint(
         }
     }
 
+    val distributedMaps: MutableList<DistributedMap<*, *>> = mutableListOf()
+
+    override fun <Key, Value> map(name: String): DistributedMap<Key, Value> {
+        val mapEntry = distributedMaps.stream().filter { it.resolveName().equals(name) }.findFirst().orElse(null)
+        if (mapEntry == null) {
+            val map = SimpleDistributedMap<Key, Value>(
+                this, id, name
+            )
+            this.distributedMaps.add(map)
+            return map
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        return mapEntry as DistributedMap<Key, Value>;
+    }
+
     private fun attemptReconnection() {
         if (!running) return
 
@@ -117,9 +135,9 @@ class ClientEndPoint(
             logger.log(Level.INFO, "[$id] Reconnecting in $delay seconds...")
             Thread.sleep(delay * 1000) // Sleep before reconnecting
 
-            if (!Networking.isServerRunning(port)) {
+            if (!EndPoint.isServerRunning(port)) {
                 logger.log(Level.INFO, "[$id] Trying to promote to server")
-                Networking.promoteToServer(port)
+                EndPoint.promoteToServer(port)
             }
         } else {
             logger.log(Level.WARNING, "[$id] Reconnect attempts exceeded. Closing client.")

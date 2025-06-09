@@ -12,6 +12,8 @@ import io.netty.channel.kqueue.KQueueServerSocketChannel
 import io.netty.channel.nio.NioIoHandler
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import net.cakemc.meshing.redundant.Member
+import net.cakemc.meshing.redundant.distributed.DistributedMap
+import net.cakemc.meshing.redundant.distributed.SimpleDistributedMap
 import net.cakemc.meshing.redundant.event.EventBus
 import net.cakemc.meshing.redundant.logger.Logger
 import net.cakemc.meshing.redundant.networking.handler.ServerChannelInitializer
@@ -26,8 +28,23 @@ class ServerEndPoint(
 ) : EndPoint {
     private val logger = Logger.getLogger("server-endpoint")
 
-
     val member: Member = Member(id, Member.MemberAddress(host, port))
+
+    val distributedMaps: MutableList<DistributedMap<*, *>> = mutableListOf()
+
+    override fun <Key, Value> map(name: String): DistributedMap<Key, Value> {
+        val mapEntry = distributedMaps.stream().filter { it.resolveName().equals(name) }.findFirst().orElse(null)
+        if (mapEntry == null) {
+            val map = SimpleDistributedMap<Key, Value>(
+                this, id, name
+            )
+            this.distributedMaps.add(map)
+            return map
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        return mapEntry as DistributedMap<Key, Value>;
+    }
 
     /**
      * Returns the boss event loop group for the server.
@@ -115,6 +132,8 @@ class ServerEndPoint(
         bossGroup!!.shutdownGracefully()
         workerGroup!!.shutdownGracefully()
     }
+
+
 
     override fun handler(): ConnectionHandler {
         return connectionHandler
