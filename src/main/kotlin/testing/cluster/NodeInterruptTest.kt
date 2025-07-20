@@ -1,4 +1,4 @@
-package testing
+package testing.cluster
 
 import net.cakemc.meshing.redundant.networking.EndPoint
 import kotlin.concurrent.thread

@@ -1,4 +1,4 @@
-package testing
+package testing.cluster
 
 import net.cakemc.meshing.redundant.event.impl.PacketReceivedEvent
 import net.cakemc.meshing.redundant.event.impl.file.FileReceivedEvent
