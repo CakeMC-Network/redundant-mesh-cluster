@@ -18,6 +18,8 @@ import net.cakemc.meshing.redundant.Member
 import net.cakemc.meshing.redundant.distributed.DistributedMap
 import net.cakemc.meshing.redundant.distributed.SimpleDistributedMap
 import net.cakemc.meshing.redundant.event.EventBus
+import net.cakemc.meshing.redundant.leader.LeaderElectionSystem
+import net.cakemc.meshing.redundant.leader.LeaderSelectionData
 import net.cakemc.meshing.redundant.logger.Logger
 import net.cakemc.meshing.redundant.networking.handler.ClientChannelInitializer
 import net.cakemc.skrilla.networking.codec.BossHandler
@@ -36,6 +38,10 @@ class ClientEndPoint(
 
     val member: Member = Member(id, Member.MemberAddress(host, port))
 
+    val leaderData: LeaderSelectionData = LeaderSelectionData(
+        "?", -1
+    )
+
     var group: EventLoopGroup? = null
         private set
 
@@ -44,8 +50,11 @@ class ClientEndPoint(
 
     var channel: Channel? = null
 
+
+
     val eventBus: EventBus
     val connectionHandler: ConnectionHandler
+    val electionSystem: LeaderElectionSystem
     val bossHandler: BossHandler
 
     @Volatile
@@ -65,10 +74,11 @@ class ClientEndPoint(
         this.connectionHandler = ConnectionHandler(
             eventBus, member, EndpointType.CLIENT
         )
+        this.electionSystem = LeaderElectionSystem(this)
 
         this.bossHandler = BossHandler(
-            member, connectionHandler, eventBus,
-            EndpointType.CLIENT
+            this, member, connectionHandler,
+            electionSystem, eventBus, EndpointType.CLIENT,
         )
     }
 
@@ -163,6 +173,14 @@ class ClientEndPoint(
 
     override fun member(): Member {
         return member
+    }
+
+    override fun isLeader(): Boolean {
+        return false // only server is leader
+    }
+
+    override fun leaderInfo(): LeaderSelectionData {
+        return this.leaderData
     }
 
     companion object {

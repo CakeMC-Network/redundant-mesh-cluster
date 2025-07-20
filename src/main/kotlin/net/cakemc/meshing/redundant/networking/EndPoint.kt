@@ -3,6 +3,7 @@ package net.cakemc.meshing.redundant.networking
 import net.cakemc.meshing.redundant.Member
 import net.cakemc.meshing.redundant.distributed.DistributedMap
 import net.cakemc.meshing.redundant.event.EventBus
+import net.cakemc.meshing.redundant.leader.LeaderSelectionData
 import net.cakemc.meshing.redundant.logger.Logger
 import net.cakemc.skrilla.networking.handler.ConnectionHandler
 import java.net.ServerSocket
@@ -15,6 +16,9 @@ interface EndPoint {
     fun handler(): ConnectionHandler
     fun eventBus(): EventBus
     fun member(): Member
+
+    fun isLeader(): Boolean
+    fun leaderInfo(): LeaderSelectionData
 
     fun <Key, Value> map(name: String): DistributedMap<Key, Value>
 

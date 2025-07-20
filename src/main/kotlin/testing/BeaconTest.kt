@@ -24,4 +24,5 @@ fun main() {
     endpoint2.handler().sendToAllSync(
         Packet(PacketType.NORMAL, "channel-2", "test", "testing", "{}")
     )
+
 }

@@ -15,6 +15,8 @@ import net.cakemc.meshing.redundant.Member
 import net.cakemc.meshing.redundant.distributed.DistributedMap
 import net.cakemc.meshing.redundant.distributed.SimpleDistributedMap
 import net.cakemc.meshing.redundant.event.EventBus
+import net.cakemc.meshing.redundant.leader.LeaderElectionSystem
+import net.cakemc.meshing.redundant.leader.LeaderSelectionData
 import net.cakemc.meshing.redundant.logger.Logger
 import net.cakemc.meshing.redundant.networking.handler.ServerChannelInitializer
 import net.cakemc.skrilla.networking.codec.BossHandler
@@ -29,6 +31,10 @@ class ServerEndPoint(
     private val logger = Logger.getLogger("server-endpoint")
 
     val member: Member = Member(id, Member.MemberAddress(host, port))
+
+    val leaderData: LeaderSelectionData = LeaderSelectionData(
+        member.identifier, System.currentTimeMillis()
+    )
 
     val distributedMaps: MutableList<DistributedMap<*, *>> = mutableListOf()
 
@@ -75,6 +81,7 @@ class ServerEndPoint(
 
     val eventBus: EventBus
     val connectionHandler: ConnectionHandler
+    val electionSystem: LeaderElectionSystem
     val bossHandler: BossHandler
 
     init {
@@ -93,10 +100,11 @@ class ServerEndPoint(
         this.connectionHandler = ConnectionHandler(
             eventBus, member, EndpointType.SERVER
         )
+        this.electionSystem = LeaderElectionSystem(this)
 
         this.bossHandler = BossHandler(
-            member, connectionHandler, eventBus,
-            EndpointType.SERVER
+            this, member, connectionHandler,
+            electionSystem, eventBus, EndpointType.SERVER
         )
     }
 
@@ -133,8 +141,6 @@ class ServerEndPoint(
         workerGroup!!.shutdownGracefully()
     }
 
-
-
     override fun handler(): ConnectionHandler {
         return connectionHandler
     }
@@ -145,6 +151,14 @@ class ServerEndPoint(
 
     override fun member(): Member {
         return member
+    }
+
+    override fun isLeader(): Boolean {
+        return true // only server is leader
+    }
+
+    override fun leaderInfo(): LeaderSelectionData {
+        return this.leaderData
     }
 
     companion object {

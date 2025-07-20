@@ -4,6 +4,7 @@ import io.netty.channel.Channel
 import net.cakemc.meshing.redundant.Member
 import net.cakemc.meshing.redundant.event.EventBus
 import net.cakemc.meshing.redundant.event.impl.PacketReceivedEvent
+import net.cakemc.meshing.redundant.leader.LeaderSelectionData
 import net.cakemc.meshing.redundant.networking.EndpointType
 import net.cakemc.meshing.redundant.networking.codec.Packet
 import net.cakemc.meshing.redundant.networking.codec.PacketFuture
@@ -15,14 +16,15 @@ import java.util.concurrent.TimeUnit
 class ConnectionHandler(
     val eventBus: EventBus,
     val member: Member,
-    var type: EndpointType
+    var type: EndpointType,
 ) {
 
     val contextMap: MutableMap<String, Channel> = ConcurrentHashMap()
     val pendingPackets: MutableMap<UUID, PacketFuture> = ConcurrentHashMap()
 
     fun packetReceived(channel: Channel, packet: Packet) {
-        eventBus.publish(PacketReceivedEvent(channel, packet))
+        val event = PacketReceivedEvent(channel, packet)
+        eventBus.publish(event)
     }
 
     fun getChannel(name: String): Channel? {

@@ -9,7 +9,9 @@ import net.cakemc.meshing.redundant.event.impl.ClientCloseEvent
 import net.cakemc.meshing.redundant.event.impl.ClientConnectEvent
 import net.cakemc.meshing.redundant.event.impl.ClientDisconnectEvent
 import net.cakemc.meshing.redundant.event.impl.ClientReadyEvent
+import net.cakemc.meshing.redundant.leader.LeaderElectionSystem
 import net.cakemc.meshing.redundant.logger.Logger
+import net.cakemc.meshing.redundant.networking.EndPoint
 import net.cakemc.meshing.redundant.networking.EndpointType
 import net.cakemc.skrilla.networking.handler.ConnectionHandler
 import net.cakemc.meshing.redundant.networking.codec.Packet
@@ -18,8 +20,10 @@ import java.util.logging.Level
 
 @Sharable
 class BossHandler(
+    val endPoint: EndPoint,
     val member: Member,
     val connectionHandler: ConnectionHandler,
+    val electionSystem: LeaderElectionSystem,
     val eventBus: EventBus,
     var type: EndpointType
 ) : SimpleChannelInboundHandler<Packet>() {
@@ -35,6 +39,8 @@ class BossHandler(
             if (pending != null)
                 pending.set(packet)
         }
+
+        electionSystem.packetReceived(ctx.channel(), packet)
 
         connectionHandler.packetReceived(ctx.channel(), packet)
 
@@ -62,7 +68,12 @@ class BossHandler(
 
         logger.log(Level.INFO, "[Server:${member.address.port}] Client connected: ${channel.remoteAddress()}")
         connectionHandler.registerChannel(channel.remoteAddress().toString(), channel)
-        eventBus.publish(ClientDisconnectEvent(channel))
+        eventBus.publish(ClientConnectEvent(channel))
+
+        connectionHandler.sendPacketSync(channel.remoteAddress().toString(), Packet(
+            PacketType.NORMAL, member.identifier, "leader_select", "pick_announced",
+            member.identifier
+        ))
     }
 
     fun channelInactiveServer(ctx: ChannelHandlerContext) {
@@ -70,7 +81,7 @@ class BossHandler(
 
         logger.log(Level.INFO, "[Server:${member.address.port}] Client disconnected ${channel.remoteAddress()}")
         connectionHandler.unregisterChannel(connectionHandler.getChannelNameByContext(channel)?: channel.remoteAddress().toString())
-        eventBus.publish(ClientConnectEvent(channel))
+        eventBus.publish(ClientDisconnectEvent(channel))
     }
 
     fun channelActiveClient(ctx: ChannelHandlerContext) {
