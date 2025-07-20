@@ -18,7 +18,12 @@ class ServerChannelInitializer(
     override fun initChannel(ch: SocketChannel) {
         val pipeline = ch.pipeline()
 
-        pipeline.addFirst("decoder", DiscriminatorDecoder())
+        pipeline.addFirst("framing_encoder", FramingEncoder())
+        pipeline.addAfter("framing_encoder", "framing_decoder", FramingDecoder())
+        pipeline.addAfter("framing_decoder", "cipher_encoder", CipherEncoder())
+        pipeline.addAfter("cipher_encoder", "cipher_decoder", CipherDecoder())
+
+        pipeline.addAfter("cipher_decoder", "decoder", DiscriminatorDecoder())
         pipeline.addAfter("decoder", "packet_encoder", PacketEncoder())
         pipeline.addAfter("packet_encoder", "file_encoder", FileTransferEncoder())
         pipeline.addAfter("file_encoder", "file_chunk_encoder", FileChunkEncoder())

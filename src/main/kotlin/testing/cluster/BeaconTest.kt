@@ -3,13 +3,17 @@ package testing.cluster
 import net.cakemc.meshing.redundant.event.impl.PacketReceivedEvent
 import net.cakemc.meshing.redundant.event.impl.file.FileReceivedEvent
 import net.cakemc.meshing.redundant.networking.EndPoint
+import net.cakemc.meshing.redundant.networking.codec.CipherWrapper
 import net.cakemc.meshing.redundant.networking.codec.Packet
 import net.cakemc.meshing.redundant.networking.codec.PacketType
 import java.io.File
 import java.nio.file.Path
 import kotlin.concurrent.thread
+import kotlin.random.Random
 
 fun main() {
+    CipherWrapper.setKey(Random.Default.nextBytes(16))
+
     val endpoint1 = EndPoint.createEndPoint()
     val endpoint2 = EndPoint.createEndPoint()
     val endpoint3 = EndPoint.createEndPoint()
