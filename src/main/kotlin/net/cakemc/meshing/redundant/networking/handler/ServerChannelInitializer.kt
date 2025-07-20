@@ -4,9 +4,8 @@ import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInitializer
 import io.netty.channel.socket.SocketChannel
 import net.cakemc.meshing.redundant.logger.Logger
+import net.cakemc.meshing.redundant.networking.codec.*
 import net.cakemc.skrilla.networking.codec.BossHandler
-import net.cakemc.meshing.redundant.networking.codec.PacketDecoder
-import net.cakemc.meshing.redundant.networking.codec.PacketEncoder
 import net.cakemc.skrilla.networking.handler.ConnectionHandler
 import java.util.logging.Level
 
@@ -19,9 +18,12 @@ class ServerChannelInitializer(
     override fun initChannel(ch: SocketChannel) {
         val pipeline = ch.pipeline()
 
-        pipeline.addFirst("decoder", PacketDecoder())
-        pipeline.addAfter("decoder", "encoder", PacketEncoder())
-        pipeline.addAfter("encoder", "boss", bossHandler)
+        pipeline.addFirst("decoder", DiscriminatorDecoder())
+        pipeline.addAfter("decoder", "packet_encoder", PacketEncoder())
+        pipeline.addAfter("packet_encoder", "file_encoder", FileTransferEncoder())
+        pipeline.addAfter("file_encoder", "file_chunk_encoder", FileChunkEncoder())
+
+        pipeline.addAfter("file_chunk_encoder", "boss", bossHandler)
     }
 
 }

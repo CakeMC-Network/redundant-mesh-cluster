@@ -9,7 +9,11 @@ import java.util.*
 
 class PacketDecoder(): ByteToMessageDecoder() {
 
-    override fun decode(ctx: ChannelHandlerContext, buffer: ByteBuf, out: MutableList<Any>) {
+    public override fun decode(ctx: ChannelHandlerContext, buffer: ByteBuf, out: MutableList<Any>) {
+        val type = buffer.readUtf8String()
+        if (type != CodecType.PACKET.name)
+            return
+
         val responseUUID = UUID.fromString(buffer.readUtf8String())
         val typeOrdinal = buffer.readVarInt()
         val packetType = PacketType.values()[typeOrdinal]

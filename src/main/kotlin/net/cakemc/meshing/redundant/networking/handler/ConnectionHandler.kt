@@ -4,14 +4,14 @@ import io.netty.channel.Channel
 import net.cakemc.meshing.redundant.Member
 import net.cakemc.meshing.redundant.event.EventBus
 import net.cakemc.meshing.redundant.event.impl.PacketReceivedEvent
-import net.cakemc.meshing.redundant.leader.LeaderSelectionData
 import net.cakemc.meshing.redundant.networking.EndpointType
-import net.cakemc.meshing.redundant.networking.codec.Packet
-import net.cakemc.meshing.redundant.networking.codec.PacketFuture
-import net.cakemc.meshing.redundant.networking.codec.PacketType
+import net.cakemc.meshing.redundant.networking.codec.*
+import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import kotlin.io.path.name
+import kotlin.io.path.readBytes
 
 class ConnectionHandler(
     val eventBus: EventBus,
@@ -60,8 +60,7 @@ class ConnectionHandler(
     }
 
     fun getChannelNameByContext(ctx: Channel): String? {
-        val entry = this.contextMap.entries.stream()
-            .filter { it.value.equals(ctx) }.findFirst().orElse(null)
+        val entry = this.contextMap.entries.stream().filter { it.value.equals(ctx) }.findFirst().orElse(null)
 
         if (entry == null) {
             return null
@@ -70,8 +69,7 @@ class ConnectionHandler(
     }
 
     fun closeChannel(name: String) {
-        if (isChannelRegistered(name))
-            getChannel(name)!!.close()
+        if (isChannelRegistered(name)) getChannel(name)!!.close()
     }
 
     // sending methods
@@ -82,7 +80,14 @@ class ConnectionHandler(
         } else {
             sendPacketSync("__main__", packet)
         }
+    }
 
+    fun sendPacketMainRawSync(packet: Any) {
+        if (this.type == EndpointType.SERVER) {
+            sendToAllRawSync(packet)
+        } else {
+            sendPacketRawSync("__main__", packet)
+        }
     }
 
     fun sendPacketMainWithFuture(packet: Packet): PacketFuture {
@@ -114,8 +119,6 @@ class ConnectionHandler(
         return sendPacketWithFuture("__main__", packet)
     }
 
-
-
     fun sendPacketMainAsync(packet: Packet) {
         if (this.type == EndpointType.SERVER) {
             sendToAllAsync(packet)
@@ -125,18 +128,29 @@ class ConnectionHandler(
 
     }
 
+    fun sendPacketMainAnyAsync(packet: Any) {
+        if (this.type == EndpointType.SERVER) {
+            sendToAllRawAsync(packet)
+        } else {
+            sendPacketRawAsync("__main__", packet)
+        }
+
+    }
+
     fun sendPacketMainWithFutureAsync(packet: Packet): PacketFuture {
         return sendPacketWithFutureAsync("__main__", packet)
     }
 
     fun sendPacketSync(name: String, packet: Packet) {
-        if (this.contextMap.containsKey(name))
-            this.contextMap.get(name)!!.writeAndFlush(packet)
+        if (this.contextMap.containsKey(name)) this.contextMap.get(name)!!.writeAndFlush(packet)
+    }
+
+    fun sendPacketRawSync(name: String, packet: Any) {
+        if (this.contextMap.containsKey(name)) this.contextMap.get(name)!!.writeAndFlush(packet)
     }
 
     fun sendPacketWithFuture(name: String, packet: Packet): PacketFuture {
-        if (this.contextMap.containsKey(name))
-            this.contextMap.get(name)!!.writeAndFlush(packet)
+        if (this.contextMap.containsKey(name)) this.contextMap.get(name)!!.writeAndFlush(packet)
 
         val future = PacketFuture()
         this.pendingPackets.put(packet.responseUUID, future)
@@ -157,16 +171,38 @@ class ConnectionHandler(
         this.contextMap.values.forEach { it.writeAndFlush(packet) }
     }
 
+    fun sendToAllSync(packet: Any) {
+        this.contextMap.values.forEach { it.writeAndFlush(packet) }
+    }
+
     fun sendToAllSync(packet: Packet, vararg excluded: Channel) {
         this.contextMap.values.forEach {
-            if (excluded.contains(it))
-                return
+            if (excluded.contains(it)) return
+
+            it.writeAndFlush(packet)
+        }
+    }
+
+    fun sendToAllRawSync(packet: Any, vararg excluded: Channel) {
+        this.contextMap.values.forEach {
+            if (excluded.contains(it)) return
 
             it.writeAndFlush(packet)
         }
     }
 
     fun sendPacketAsync(name: String, packet: Packet) {
+        if (this.contextMap.containsKey(name)) {
+            val context = this.contextMap[name]
+            if (context != null) {
+                Thread.ofVirtual().start {
+                    context.writeAndFlush(packet)
+                }
+            }
+        }
+    }
+
+    fun sendPacketRawAsync(name: String, packet: Any) {
         if (this.contextMap.containsKey(name)) {
             val context = this.contextMap[name]
             if (context != null) {
@@ -202,6 +238,14 @@ class ConnectionHandler(
         }
     }
 
+    fun sendToAllRawAsync(packet: Any) {
+        this.contextMap.values.forEach { context ->
+            Thread.ofVirtual().start {
+                context.writeAndFlush(packet)
+            }
+        }
+    }
+
     fun replyToPacketAsync(channel: Channel, received: Packet, reply: Packet) {
         val replyId = received.responseUUID
         reply.packetType = PacketType.RESPONSE
@@ -211,6 +255,74 @@ class ConnectionHandler(
             channel.writeAndFlush(reply)
         }
 
+    }
+
+    fun sendFileToAll(targetFolder: String, file: Path) {
+        val chunkSize = 8192
+        val fileHash = FileTransfer.calculateFileHash(file)
+
+        val bytes = file.readBytes()
+
+        val totalChunks = (bytes.size + chunkSize - 1) / chunkSize
+
+        if (totalChunks == 1) {
+            sendToAllRawSync(
+                FileTransfer(
+                    bytes, file.name, targetFolder, fileHash
+                )
+            )
+            return
+        }
+
+        for (i in 0 until totalChunks) {
+            val from = i * chunkSize
+            val to = minOf(from + chunkSize, bytes.size)
+            val chunkData = bytes.copyOfRange(from, to)
+
+            val chunk = FileChunk(
+                fileName = file.name,
+                fileLocation = targetFolder,
+                fileHash = fileHash,
+                totalChunks = totalChunks,
+                chunkIndex = i,
+                data = chunkData
+            )
+            sendToAllRawSync(chunk)
+        }
+    }
+
+    fun sendFile(name: String, targetFolder: String, file: Path) {
+        val chunkSize = 8192
+        val fileHash = FileTransfer.calculateFileHash(file)
+
+        val bytes = file.readBytes()
+
+        val totalChunks = (bytes.size + chunkSize - 1) / chunkSize
+
+        if (totalChunks == 1) {
+            sendPacketRawSync(name,
+                FileTransfer(
+                    bytes, file.name, targetFolder, fileHash
+                )
+            )
+            return
+        }
+
+        for (i in 0 until totalChunks) {
+            val from = i * chunkSize
+            val to = minOf(from + chunkSize, bytes.size)
+            val chunkData = bytes.copyOfRange(from, to)
+
+            val chunk = FileChunk(
+                fileName = file.name,
+                fileLocation = targetFolder,
+                fileHash = fileHash,
+                totalChunks = totalChunks,
+                chunkIndex = i,
+                data = chunkData
+            )
+            sendPacketRawSync(name, chunk)
+        }
     }
 
 }

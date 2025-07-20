@@ -10,6 +10,8 @@ class PacketEncoder(): MessageToByteEncoder<Packet>() {
 
     override fun encode(channel: ChannelHandlerContext, packet: Packet, output: ByteBuf) {
         output.run {
+            writeUtf8String(CodecType.PACKET.name)
+
             writeUtf8String(packet.responseUUID.toString())
             writeVarInt(packet.packetType.ordinal)
             writeUtf8String(packet.sender)
