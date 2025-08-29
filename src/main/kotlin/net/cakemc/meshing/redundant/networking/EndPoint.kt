@@ -75,7 +75,8 @@ interface EndPoint {
                 val server = ServerEndPoint(host, port, identifier)
                 parent.close()
 
-                // TODO COPY OVER HANDLER, EVENTBUS and so on
+                val eventbus = parent.eventBus()
+                server.eventBus = eventbus
 
                 parent.wrapped = server
                 thread(start = true, isDaemon = true) { server.start() }

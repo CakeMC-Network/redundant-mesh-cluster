@@ -16,9 +16,6 @@ import net.cakemc.meshing.redundant.networking.EndPoint
 import net.cakemc.meshing.redundant.networking.EndpointType
 import net.cakemc.meshing.redundant.networking.codec.*
 import net.cakemc.skrilla.networking.handler.ConnectionHandler
-import java.io.File
-import java.io.FileInputStream
-import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Level
 
@@ -32,7 +29,7 @@ class BossHandler(
     var type: EndpointType
 ) : ChannelInboundHandlerAdapter() {
 
-    val logger = Logger.getLogger("boos-handler")
+    val logger = Logger.getLogger("boss-handler")
 
 
     private val filesInProgress = ConcurrentHashMap<String, FileBuffer>()

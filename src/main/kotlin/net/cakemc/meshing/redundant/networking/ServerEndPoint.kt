@@ -81,7 +81,7 @@ class ServerEndPoint(
 
     private var channel: Channel? = null
 
-    val eventBus: EventBus
+    var eventBus: EventBus
     val connectionHandler: ConnectionHandler
     val electionSystem: LeaderElectionSystem
     val bossHandler: BossHandler
