@@ -50,7 +50,7 @@ class ClientEndPoint(
 
     var channel: Channel? = null
 
-
+    lateinit var parent: ParentEndPoint
 
     val eventBus: EventBus
     val connectionHandler: ConnectionHandler
@@ -147,7 +147,7 @@ class ClientEndPoint(
 
             if (!EndPoint.isServerRunning(port)) {
                 logger.log(Level.INFO, "[$id] Trying to promote to server")
-                EndPoint.promoteToServer(port)
+                EndPoint.promoteToServer(parent, id, port, host)
             }
         } else {
             logger.log(Level.WARNING, "[$id] Reconnect attempts exceeded. Closing client.")
@@ -163,6 +163,14 @@ class ClientEndPoint(
         group!!.shutdownGracefully()
     }
 
+    override fun initializeParent(parent: ParentEndPoint) {
+        this.parent = parent
+    }
+
+    override fun parent(): ParentEndPoint {
+        return this.parent
+    }
+
     override fun handler(): ConnectionHandler {
         return connectionHandler
     }
@@ -176,7 +184,7 @@ class ClientEndPoint(
     }
 
     override fun isLeader(): Boolean {
-        return false // only server is leader
+        return this.id.equals(leaderData.leaderId)
     }
 
     override fun leaderInfo(): LeaderSelectionData {

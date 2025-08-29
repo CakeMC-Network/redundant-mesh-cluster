@@ -36,6 +36,8 @@ class ServerEndPoint(
         member.identifier, System.currentTimeMillis()
     )
 
+    lateinit var parent: ParentEndPoint
+
     val distributedMaps: MutableList<DistributedMap<*, *>> = mutableListOf()
 
     override fun <Key, Value> map(name: String): DistributedMap<Key, Value> {
@@ -154,11 +156,19 @@ class ServerEndPoint(
     }
 
     override fun isLeader(): Boolean {
-        return true // only server is leader
+        return this.id.equals(leaderData.leaderId)
     }
 
     override fun leaderInfo(): LeaderSelectionData {
         return this.leaderData
+    }
+
+    override fun parent(): ParentEndPoint {
+        return parent
+    }
+
+    override fun initializeParent(parent: ParentEndPoint) {
+        this.parent = parent
     }
 
     companion object {

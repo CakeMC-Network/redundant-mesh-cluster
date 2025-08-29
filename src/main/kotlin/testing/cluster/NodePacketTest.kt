@@ -19,7 +19,7 @@ fun main() {
         if (packetReceivedEvent.packet.packetType == PacketType.REQUEST) {
             endpoint2.handler().replyToPacketSync(
                 packetReceivedEvent.channel, packetReceivedEvent.packet,
-                Packet(UUID.randomUUID(),  PacketType.RESPONSE, "client-1", "test", "testing", "RESPONSE")
+                Packet(UUID.randomUUID(),  PacketType.RESPONSE, System.currentTimeMillis(), "client-1", "test", "testing", "RESPONSE")
 
             )
         }
@@ -31,7 +31,7 @@ fun main() {
         if (packetReceivedEvent.packet.packetType == PacketType.REQUEST) {
             endpoint2.handler().replyToPacketSync(
                 packetReceivedEvent.channel, packetReceivedEvent.packet,
-                Packet(UUID.randomUUID(),  PacketType.RESPONSE, "client-2", "test", "testing", "RESPONSE")
+                Packet(UUID.randomUUID(),  PacketType.RESPONSE, System.currentTimeMillis(), "client-2", "test", "testing", "RESPONSE")
 
             )
         }
@@ -44,20 +44,20 @@ fun main() {
     Thread.sleep(5000)
 
     endpoint1.handler().sendToAllSync(
-        Packet(UUID.randomUUID(), PacketType.NORMAL, "client-1", "test", "testing", "{}")
+        Packet(UUID.randomUUID(), PacketType.NORMAL, System.currentTimeMillis(), "client-1", "test", "testing", "{}")
     )
     val response = endpoint2.handler().sendPacketMainWithFuture(
-        Packet(UUID.randomUUID(), PacketType.REQUEST, "client-2", "test", "testing", "requesting")
+        Packet(UUID.randomUUID(), PacketType.REQUEST, System.currentTimeMillis(), "client-2", "test", "testing", "requesting")
     ).syncUninterruptedly(3000, TimeUnit.MILLISECONDS)
 
     println("RESPONSE: " + response)
 
     endpoint2.handler().sendToAllSync(
-        Packet(UUID.randomUUID(), PacketType.NORMAL, "client-2", "test", "testing", "{}")
+        Packet(UUID.randomUUID(), PacketType.NORMAL, System.currentTimeMillis(), "client-2", "test", "testing", "{}")
     )
 
     val response2 = endpoint1.handler().sendPacketMainWithFuture(
-        Packet(UUID.randomUUID(), PacketType.REQUEST, "client-1", "test", "testing", "requesting")
+        Packet(UUID.randomUUID(), PacketType.REQUEST, System.currentTimeMillis(), "client-1", "test", "testing", "requesting")
     ).syncUninterruptedly(3000, TimeUnit.MILLISECONDS)
 
     println("RESPONSE: " + response2)

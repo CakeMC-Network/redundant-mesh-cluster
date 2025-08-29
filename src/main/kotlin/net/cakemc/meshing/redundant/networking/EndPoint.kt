@@ -20,51 +20,66 @@ interface EndPoint {
     fun isLeader(): Boolean
     fun leaderInfo(): LeaderSelectionData
 
+    fun parent(): ParentEndPoint
+    fun initializeParent(parent: ParentEndPoint)
+
     fun <Key, Value> map(name: String): DistributedMap<Key, Value>
 
     companion object {
         private val logger = Logger.getLogger("network-manager")
 
-        @Volatile
-        private var activeEndpoint: EndPoint? = null
-
         private var isServerCreated = false
 
-        fun createEndPointAndConnect(port: Int = 5000, host: String = "127.0.0.1"): EndPoint {
-            val endPoint = createEndPoint(port, host)
+        fun createEndPointAndConnect(
+            identifier: String = "client-${(1000..9999).random()}",
+            port: Int = 5000,
+            host: String = "127.0.0.1"
+        ): EndPoint {
+            val endPoint = createEndPoint(identifier, port, host)
             thread(start = true, isDaemon = true) { endPoint.start() }
 
             return endPoint
         }
 
-        fun createEndPoint(port: Int = 5000, host: String = "127.0.0.1"): EndPoint {
+        fun createEndPoint(
+            identifier: String = "client-${(1000..9999).random()}",
+            port: Int = 5000,
+            host: String = "127.0.0.1"
+        ): EndPoint {
             val endpoint: EndPoint = if (isPortAvailable(port) && !isServerCreated) {
-                val serverEndpoint = ServerEndPoint(host, port)
-                activeEndpoint = serverEndpoint
+                val serverEndpoint: EndPoint = ServerEndPoint(host, port, identifier)
+                val wrappedEndPoint = ParentEndPoint(serverEndpoint)
+                serverEndpoint.initializeParent(wrappedEndPoint)
                 isServerCreated = true
-                serverEndpoint
+
+                wrappedEndPoint
             } else {
-                val clientEndpoint = ClientEndPoint(host, port)
-                activeEndpoint = clientEndpoint
-                clientEndpoint
+                val clientEndpoint: EndPoint = ClientEndPoint(host, port, identifier)
+                val wrappedEndPoint = ParentEndPoint(clientEndpoint)
+                clientEndpoint.initializeParent(wrappedEndPoint)
+
+                wrappedEndPoint
             }
 
             return endpoint
         }
 
-        fun promoteToServer(port: Int, host: String = "127.0.0.1") {
+        fun promoteToServer(
+            parent: ParentEndPoint,
+            identifier: String,
+            port: Int,
+            host: String = "127.0.0.1"
+        ) {
             if (isPortAvailable(port)) {
                 logger.log(Level.INFO, "[Promote] No active server. Creating one.")
-                val server = ServerEndPoint(host, port)
-                activeEndpoint?.close()
-                activeEndpoint = server
+                val server = ServerEndPoint(host, port, identifier)
+                parent.close()
+
+                // TODO COPY OVER HANDLER, EVENTBUS and so on
+
+                parent.wrapped = server
                 thread(start = true, isDaemon = true) { server.start() }
             }
-        }
-
-        fun replaceActiveEndpoint(newEndpoint: EndPoint) {
-            activeEndpoint?.close()
-            activeEndpoint = newEndpoint
         }
 
         fun isPortAvailable(port: Int): Boolean {
